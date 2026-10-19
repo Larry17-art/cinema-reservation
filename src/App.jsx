@@ -6,6 +6,8 @@ import { SeatPicker, MyTickets } from './Booking.jsx'
 import { buildMovieTree, mergeSort } from './dsa.js'
 import { hm, timeFmt, dayKey, dayLabel, peso } from './util.js'
 
+const NOIMG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='600'><rect width='100%' height='100%' fill='%233d2034'/><text x='50%' y='50%' fill='%23b99fae' font-family='sans-serif' font-size='24' text-anchor='middle'>No poster</text></svg>"
+
 export default function App() {
   if (!supabase) return <main className="auth"><div className="panel"><h2>Supabase not connected</h2><p className="muted">Create a <code>.env</code> file with your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then restart <code>npm run dev</code>.</p></div></main>
   return <AuthGate>{({ profile, signOut }) => <Shell profile={profile} signOut={signOut} />}</AuthGate>
@@ -75,7 +77,7 @@ function Shell({ profile, signOut }) {
           <section className="grid">
             {shown.map((m) => (
               <button key={m.id} className="card" onClick={() => setMovie(m)}>
-                <img src={m.poster_url} alt={`${m.title} poster`} loading="lazy" />
+                <img src={m.poster_url} alt={`${m.title} poster`} loading="lazy" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = NOIMG }} />
                 <div className="card-body">
                   <h2>{m.title}</h2>
                   <div className="meta"><span className="rating">★ {m.rating}</span><span>{hm(m.duration_min)}</span></div>
@@ -100,7 +102,7 @@ function MovieDetail({ movie, showtimes, onPick, onBack }) {
     <section className="detail">
       <button className="link" onClick={onBack}>Back to movies</button>
       <div className="detail-grid">
-        <img className="poster" src={movie.poster_url} alt={`${movie.title} poster`} />
+        <img className="poster" src={movie.poster_url} alt={`${movie.title} poster`} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = NOIMG }} />
         <div>
           <h1>{movie.title}</h1>
           <div className="meta big"><span className="rating">★ {movie.rating}</span><span>{hm(movie.duration_min)}</span><span>{movie.year}</span></div>
