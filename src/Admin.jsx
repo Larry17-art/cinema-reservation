@@ -36,13 +36,25 @@ function Movies() {
     return mergeSort(base, cmp)                                         // Merge sort
   }, [rows, q, sort, tree])
 
+  const [uploading, setUploading] = useState(false)
+  const upload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return setErr('Poster must be a JPG, PNG or WEBP image.')
+    if (file.size > 3 * 1024 * 1024) return setErr('Image is too large (max 3 MB).')
+    setUploading(true); setErr('')
+    const path = `${Date.now()}-${file.name.toLowerCase().replace(/[^a-z0-9.]+/g, '-')}`
+    const { error } = await supabase.storage.from('posters').upload(path, file)
+    setUploading(false)
+    if (error) return setErr('Upload failed: ' + error.message + ' (did you run supabase/storage.sql?)')
+    setForm((f) => ({ ...f, poster_url: supabase.storage.from('posters').getPublicUrl(path).data.publicUrl }))
+  }
   const validate = (f) => {
     if (!f.title.trim() || f.title.length > 100) return 'Title is required (max 100 characters).'
     if (!(+f.year >= 1888 && +f.year <= 2100)) return 'Year must be between 1888 and 2100.'
     if (!(f.rating !== '' && +f.rating >= 0 && +f.rating <= 10)) return 'Rating must be 0 to 10.'
     if (!f.genres.split(',').some((g) => g.trim())) return 'Add at least one genre (comma separated).'
     if (!(+f.duration_min > 0 && +f.duration_min <= 600)) return 'Duration must be 1 to 600 minutes.'
-    if (!f.poster_url.trim()) return 'Poster path is required.'
+    if (!f.poster_url.trim() || f.poster_url === '/posters/') return 'Upload a poster image.'
     return ''
   }
   const save = async (e) => {
@@ -67,17 +79,24 @@ function Movies() {
       {form && (
         <form className="panel grid2" onSubmit={save}>
           <h3>{form.id ? 'Edit movie' : 'New movie'}</h3>
-          {[['title', 'Title'], ['year', 'Year'], ['rating', 'Rating (0-10)'], ['genres', 'Genres (comma separated)'], ['duration_min', 'Duration (minutes)'], ['poster_url', 'Poster path or URL']].map(([k, l]) => (
+          {[['title', 'Title'], ['year', 'Year'], ['rating', 'Rating (0-10)'], ['genres', 'Genres (comma separated)'], ['duration_min', 'Duration (minutes)']].map(([k, l]) => (
             <label key={k}>{l}<input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></label>
           ))}
+          <div className="poster-field">
+            <label>Poster image
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={upload} disabled={uploading} />
+            </label>
+            <span className="muted small">{uploading ? 'Uploading…' : 'Pick a JPG, PNG or WEBP file (max 3 MB).'}</span>
+            {form.poster_url && form.poster_url !== '/posters/' && <img className="poster-prev" src={form.poster_url} alt="Poster preview" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+          </div>
           {err && <p className="banner err">{err}</p>}
-          <div className="inline"><button className="primary">Save</button><button type="button" className="link" onClick={() => setForm(null)}>Cancel</button></div>
+          <div className="inline"><button className="primary" disabled={uploading}>Save</button><button type="button" className="link" onClick={() => setForm(null)}>Cancel</button></div>
         </form>
       )}
       <div className="tablewrap"><table>
-        <thead><tr><th>Title</th><th>Year</th><th>Rating</th><th>Genres</th><th>Length</th><th></th></tr></thead>
+        <thead><tr><th>Poster</th><th>Title</th><th>Year</th><th>Rating</th><th>Genres</th><th>Length</th><th></th></tr></thead>
         <tbody>{visible.map((m) => (
-          <tr key={m.id}><td>{m.title}</td><td>{m.year}</td><td>{m.rating}</td><td>{m.genres.join(' · ')}</td><td>{hm(m.duration_min)}</td>
+          <tr key={m.id}><td><img className="thumb" src={m.poster_url} alt="" /></td><td>{m.title}</td><td>{m.year}</td><td>{m.rating}</td><td>{m.genres.join(' · ')}</td><td>{hm(m.duration_min)}</td>
             <td className="act"><button className="link" onClick={() => { setForm({ ...m, genres: m.genres.join(', ') }); setErr('') }}>Edit</button><button className="link danger" onClick={() => del(m)}>Delete</button></td></tr>
         ))}</tbody>
       </table></div>
